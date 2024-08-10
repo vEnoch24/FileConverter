@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CloudConvert.API" Version="1.2.0" />
+    <PackageReference Include="ConvertApi" Version="3.0.14" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.9.3" />
+    <PackageReference Include="MudBlazor" Version="6.20.0" />
+    <PackageReference Include="Syncfusion.Blazor" Version="26.2.8" />
+  </ItemGroup>
+
+</Project>

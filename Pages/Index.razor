@@ -1,0 +1,353 @@
+﻿@page "/"
+@using FileConverter.Helper;
+@using FileConverter.Services;
+@using Microsoft.AspNetCore.Components.Forms;
+@using System.Net.Http.Headers;
+@using System.Net.Http;
+@using System.IO;
+
+@inject ConverterService converterService;
+@inject IConfiguration Configuration;
+@inject IJSRuntime JS;
+@inject ISnackbar Snackbar;
+
+@implements IAsyncDisposable
+
+<PageTitle>File Converter</PageTitle>
+
+
+
+
+@*<MudSelect T="string" Label="Convert to" Variant="Variant.Filled" AnchorOrigin="Origin.BottomCenter">
+    <MudSelectItem Value="@("Cardinale")" />
+    <MudSelectItem Value="@("Diavolo")" />
+    <MudSelectItem Value="@("Margarita")" />
+    <MudSelectItem Value="@("Spinaci")" />
+</MudSelect>*@
+
+<MudInputLabel>Convert To</MudInputLabel>
+<SfDropDownList TValue="string" TItem="FileFormat"
+        Placeholder="Select a format" 
+        
+        DataSource="@formats"
+        style="color: #6EACDA;"
+        AllowFiltering="true">
+    <DropDownListFieldSettings Value="Id" Text="Name" GroupBy="Category"></DropDownListFieldSettings>
+    <DropDownListEvents TValue="string" TItem="FileFormat" OnValueSelect="OnValueSelected" ValueChange="OnValueChange"></DropDownListEvents>
+</SfDropDownList>
+
+
+<MudPaper Height="300px"
+          Outlined="true"
+          Class="@dragClass"
+          @ondrop="@ClearDragClass"
+          @ondragenter="@SetDragClass"
+          @ondragleave="@ClearDragClass"
+          @ondragend="@ClearDragClass">
+    <InputFile id="fileInput" OnChange="HandleSelectedFile" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" />
+    <MudText Typo="Typo.h6">
+        Drag and drop file here or click
+    </MudText>
+    @if (!string.IsNullOrEmpty(fileName))
+    {
+        <MudChip T="string"
+             Color="Color.Dark"
+             Text="@fileName"
+             tabindex="-1" />
+    }
+</MudPaper>
+
+<MudToolBar Gutters="@false"
+            Class="relative d-flex justify-end gap-4">
+   
+    @if(isConverting)
+    {
+        <MudButton Color="Color.Primary"
+               Disabled = "true"
+               Variant="Variant.Filled">
+            <InputFile id="fileInput"
+                   MaxAllowedSize="52428800"
+                   OnChange="HandleSelectedFile"
+                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" />
+            Upload
+        </MudButton>
+         <MudButton Color="Color.Primary"
+               Disabled="true"
+               OnClick="ConvertFile"
+               
+               Variant="Variant.Filled">
+            <MudProgressCircular Color="Color.Default" Style="height:20px;width:20px; margin-right: 8px" Indeterminate="true" />
+            Convert
+        </MudButton>
+        <MudButton Color="Color.Error"
+               Disabled="true"
+               OnClick="ClearFile"
+               Variant="Variant.Filled">
+            
+            Clear
+        </MudButton>
+        <MudButton Href="@convertedFileUrl"
+               Disabled="true"
+               Variant="Variant.Filled"
+               
+               Color="Color.Tertiary">
+            <MudProgressCircular Color="Color.Default" Style="height:20px;width:20px; margin-right: 8px" Indeterminate="true" />
+            Download Converted File
+        </MudButton>
+    }
+    else{
+        <MudButton Color="Color.Primary"
+               Variant="Variant.Filled">
+            <InputFile id="fileInput"
+                   MaxAllowedSize="52428800"
+                   OnChange="HandleSelectedFile"
+                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" />
+            Upload
+        </MudButton>
+        <MudButton Color="Color.Primary"
+               Disabled="@(!string.IsNullOrEmpty(fileName) ? false : true )"
+               OnClick="ConvertFile"
+               Variant="Variant.Filled">
+            Convert
+        </MudButton>
+        <MudButton Color="Color.Error"
+               Disabled="@(!string.IsNullOrEmpty(fileName) ? false : true )"
+               OnClick="ClearFile"
+               Variant="Variant.Filled">
+            Clear
+        </MudButton>
+        <MudButton Href="@convertedFileUrl" 
+            Disabled="@(!string.IsNullOrEmpty(convertedFileUrl) ? false : true)"
+            Variant="Variant.Filled"
+            StartIcon="@Icons.Material.Filled.Download" 
+            Color="Color.Tertiary">
+            Download Converted File
+        </MudButton>
+
+    }
+   
+</MudToolBar>
+
+
+
+@*<MudStack Style="width: 100%">
+    <MudFileUpload T="IBrowserFile"
+                   @ref="@_fileUpload"
+                   OnFilesChanged="OnInputFileChanged"
+                   AppendMultipleFiles
+                   Hidden="@false"
+                   InputClass="absolute mud-width-full mud-height-full overflow-hidden z-10"
+                   InputStyle="opacity:0"
+                   tabindex="-1"
+                   @ondrop="@ClearDragClass"
+                   @ondragenter="@SetDragClass"
+                   @ondragleave="@ClearDragClass"
+                   @ondragend="@ClearDragClass">
+       
+            
+        
+    </MudFileUpload>
+    <MudToolBar Gutters="@false"
+                Class="relative d-flex justify-end gap-4">
+        <MudButton Color="Color.Primary"
+                   OnClick="@OpenFilePickerAsync"
+                   Variant="Variant.Filled">
+            Open file picker
+        </MudButton>
+        <MudButton Color="Color.Primary"
+                   Disabled="@(!_fileNames.Any())"
+                   OnClick="@Upload"
+                   Variant="Variant.Filled">
+            Upload
+        </MudButton>
+        <MudButton Color="Color.Error"
+                   Disabled="@(!_fileNames.Any())"
+                   OnClick="@ClearAsync"
+                   Variant="Variant.Filled">
+            Clear
+        </MudButton>
+    </MudToolBar>
+</MudStack>*@
+
+
+@code{
+
+
+    private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full";
+    private string dragClass = DefaultDragClass;
+    private string? fileName;
+    private string convertedFileUrl;
+    private IBrowserFile? fileUpload;
+    private string selectedFormat;
+    private bool isConverting = false;
+
+
+    public class FileFormat
+    {
+        public string Name { get; set; }
+        public string ID { get; set; }
+        public string Category { get; set; }
+    }
+
+    List<FileFormat> formats; 
+
+    protected override void OnInitialized()
+    {
+        base.OnInitializedAsync();
+        formats  = new List<FileFormat>
+        {
+            new FileFormat() { ID = "doc", Name = "DOC", Category = "Documemts" },
+            new FileFormat() { ID = "docx", Name = "DOCX", Category = "Documemts" },
+            new FileFormat() { ID = "pdf", Name = "PDF", Category = "Documemts" },
+            new FileFormat() { ID = "html", Name = "HTML", Category = "Documemts" },
+            new FileFormat() { ID = "md", Name = "MD", Category = "Documemts" },
+            new FileFormat() { ID = "odt", Name = "ODT", Category = "Documemts" },
+            new FileFormat() { ID = "rst", Name = "RST", Category = "Documemts" },
+            new FileFormat() { ID = "rft", Name = "RFT", Category = "Documemts" },
+            new FileFormat() { ID = "tex", Name = "TEX", Category = "Documemts" },
+            new FileFormat() { ID = "txt", Name = "TXT", Category = "Documemts" },
+            new FileFormat() { ID = "odp", Name = "ODP", Category = "Presentation" },
+            new FileFormat() { ID = "ppt", Name = "PPT", Category = "Presentation" },
+            new FileFormat() { ID = "pptx", Name = "PPTX", Category = "Presentation" },
+            new FileFormat() { ID = "csv", Name = "CSV", Category = "SpreadSheet" },
+            new FileFormat() { ID = "ods", Name = "ODS", Category = "SpreadSheet" },
+            new FileFormat() { ID = "xls", Name = "XLS", Category = "SpreadSheet" },
+            new FileFormat() { ID = "xlsx", Name = "XLSX", Category = "SpreadSheet" },
+            new FileFormat() { ID = "7z", Name = "7Z", Category = "Archive" },
+            new FileFormat() { ID = "rar", Name = "RAR", Category = "Archive" },
+            new FileFormat() { ID = "tar", Name = "TAR", Category = "Archive" },
+            new FileFormat() { ID = "tar.bz2", Name = "TAR.BZ2", Category = "Archive" },
+            new FileFormat() { ID = "tar.gz", Name = "TAR.GZ", Category = "Archive" },
+            new FileFormat() { ID = "zip", Name = "ZIP", Category = "Archive" },
+            new FileFormat() { ID = "png", Name = "PNG", Category = "Image" },
+            new FileFormat() { ID = "jpg", Name = "JPG", Category = "Image" },
+            new FileFormat() { ID = "avif", Name = "AVIF", Category = "Image" },
+            new FileFormat() { ID = "bmp", Name = "BMP", Category = "Image" },
+            new FileFormat() { ID = "eps", Name = "EPS", Category = "Image" },
+            new FileFormat() { ID = "gif", Name = "GIF", Category = "Image" },
+            new FileFormat() { ID = "icns", Name = "ICNS", Category = "Image" },
+            new FileFormat() { ID = "ico", Name = "ICO", Category = "Image" },
+            new FileFormat() { ID = "odd", Name = "ODD", Category = "Image" },
+            new FileFormat() { ID = "ps", Name = "PS", Category = "Image" },
+            new FileFormat() { ID = "psd", Name = "PSD", Category = "Image" },
+            new FileFormat() { ID = "tiff", Name = "TIFF", Category = "Image" },
+            new FileFormat() { ID = "webp", Name = "WEBP", Category = "Image" },
+            new FileFormat() { ID = "xps", Name = "XPS", Category = "Image" },
+
+
+        };
+    }
+
+    private async Task HandleSelectedFile(InputFileChangeEventArgs e)
+    {
+        fileUpload = e.File;
+       
+        if (fileUpload.Size > 52428800)
+        {
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            Snackbar.Configuration.ShowTransitionDuration = 100;
+            Snackbar.Add("File size exceeds the maximum limit. (50MB)", Severity.Warning);
+            await ClearFile();
+            //Console.WriteLine("File size exceeds the maximum limit.");
+            return;
+        }
+
+        //using (MemoryStream result = new MemoryStream())
+        //{
+        //    await fileUpload.OpenReadStream(long.MaxValue).CopyToAsync(result);
+        //}
+
+        
+        fileName = fileUpload.Name;
+
+        ClearDragClass();
+        Console.WriteLine($"File selected: {fileUpload.Name}");
+    }
+
+    public void OnValueChange(ChangeEventArgs<string, FileFormat> args)
+    {
+        Console.WriteLine("The DropDownList Value is: ", args.Value);
+        selectedFormat = args.Value;
+    }
+
+    public void OnValueSelected(SelectEventArgs<FileFormat>  args)
+    {
+        selectedFormat = args.ItemData.ID;
+        Console.WriteLine("Selected Value is: ", args.ItemData.ID);
+    }
+
+    private async Task ClearFile()
+    {
+
+        await JS.InvokeVoidAsync("clearFileInput", "fileInput");
+
+        // Clear the file-related state
+        fileName = "";
+    }
+
+    private void SetDragClass()
+        => dragClass = $"{DefaultDragClass} mud-border-primary";
+
+    private void ClearDragClass()
+        => dragClass = DefaultDragClass;
+
+
+
+    private string errorMessage;
+    private DotNetObjectReference<Index> objRef;
+
+
+
+    //Task OnSelectedValueChanged(string value)
+    //{
+    //    selectedFormat = value;
+    //    Console.WriteLine(selectedFormat);
+
+    //    return Task.CompletedTask;
+    //}
+
+    //async Task OnFileSelected(FileChangedEventArgs e)
+    //{
+    //    var file = e.Files.FirstOrDefault();
+
+    //    using (MemoryStream result = new MemoryStream())
+    //    {
+    //        await file.OpenReadStream(long.MaxValue).CopyToAsync(result);
+    //    }
+    //}
+
+
+    public async Task ConvertFile()
+    {
+        try
+        {
+            isConverting = true;
+            //var selectedFiletype = MimeTypeHelper.GetFileExtension(selectedFile.Type);
+
+            var selectedFileName = fileUpload.Name;
+
+            convertedFileUrl = await converterService.ConvertAsync(fileUpload, selectedFileName, selectedFormat);
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            Snackbar.Configuration.ShowTransitionDuration = 100;
+            Snackbar.Add("Convertion Successful", Severity.Success);
+            isConverting = false;
+        }
+        catch (Exception ex)
+        {
+            isConverting = false;
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            Snackbar.Configuration.ShowTransitionDuration = 100;
+            errorMessage = $"Conversion failed: {ex.Message}";
+            Snackbar.Add(errorMessage, Severity.Error);
+        }
+    }
+
+
+    public async ValueTask DisposeAsync()
+    {
+        if (objRef != null)
+        {
+            objRef.Dispose();
+        }
+    }
+}

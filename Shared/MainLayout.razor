@@ -1,0 +1,109 @@
+﻿@inherits LayoutComponentBase
+
+<PageTitle>FileConverter</PageTitle>
+
+@*<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+        </div>
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>*@
+
+
+<MudThemeProvider />
+
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+
+<MudLayout>
+    <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" @ref="@_mudThemeProvider" Theme="@_customTheme"/>
+    
+    <MudAppBar >
+        <MudText Typo="Typo.h4" Class="ml-4">File Converter</MudText>
+        <MudSpacer />
+        
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.DarkMode : Icons.Material.Outlined.LightMode)"
+                       Color="Color.Default"
+                       Class="ma-4"
+                       @onclick="ToggleDarkMode" />
+    </MudAppBar>
+    <MudMainContent Class="pt-16 px-16">
+        <MudContainer Class="mt-9" MaxWidth="MaxWidth.Medium">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private MudTheme _theme = new();
+    private MudThemeProvider? _mudThemeProvider;
+    private bool _isDarkMode;
+    bool _drawerOpen = true;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleDarkMode()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    MudTheme _customTheme = new MudTheme()
+    {
+        Palette = new PaletteLight()
+        {
+            Primary = Colors.Blue.Default,
+            Secondary = Colors.Green.Accent4,
+            Background = "#f5f5f5", // Light gray background for light mode
+            AppbarBackground = "#f5f5f5", // White background for the AppBar in light mode
+            Surface = "#f5f5f5", // White surface color for light mode
+                TextPrimary = "#303030",
+                AppbarText = Colors.Blue.Default
+        },
+
+        PaletteDark = new PaletteDark()
+        {
+            Primary = Colors.Blue.Default,
+                Background = "#021526",
+                AppbarBackground = "#021526",
+                Surface = "#021526",
+                AppbarText = Colors.Blue.Default
+        },
+
+         Typography = new Typography()
+         {
+             Default = new Default()
+             {
+                 FontFamily = new[] { "Poppins", "Helvetica", "Arial", "sans-serif" }
+             },
+
+             H4 = new H4()
+             {
+               FontSize = "2rem",
+               FontWeight = 900,
+               
+             }
+         }
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isDarkMode = await _mudThemeProvider.GetSystemPreference();
+            StateHasChanged();
+            
+        }
+    }
+}
