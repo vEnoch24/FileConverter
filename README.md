@@ -1,2 +1,2 @@
 # FileConverter
- Converts file from one format to another
+ Blazor server web app thats converts file from one format to another
